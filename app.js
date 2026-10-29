@@ -51,30 +51,12 @@ $('import').onclick=()=>$('backup-file').click();
 function validateBackup(b){if(b?.format!=='little-years-backup'||b.album?.version!==1)throw Error('文件格式不正确');const a=b.album;if(!['school','age'].includes(a.template)||!a.photos||typeof a.photos!=='object'||Array.isArray(a.photos))throw Error('纪念册数据不完整');for(const [k,v] of Object.entries(a.photos)){if(!/^(school:(?:[0-9]|1[0-5])|age:(?:[0-9]|1[0-8]))$/.test(k)||!v||typeof v.image!=='string'||!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v.image)||v.image.length>10000000||typeof v.note!=='string'||v.note.length>200||typeof v.date!=='string'||(v.date&&!/^\d{4}-\d{2}-\d{2}$/.test(v.date)))throw Error('照片数据不符合要求')}
 for(const [k,max] of [['name',24],['birthday',10],['title',40],['dedication',300]])if(typeof a[k]!=='string'||a[k].length>max)throw Error('相框信息格式不正确');if(a.birthday&&!/^\d{4}-\d{2}-\d{2}$/.test(a.birthday))throw Error('生日格式不正确');return {version:1,name:a.name,birthday:a.birthday,title:a.title,dedication:a.dedication,template:a.template,photos:a.photos}}
 $('backup-file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>100*1024*1024)throw Error('备份文件过大');const next=validateBackup(JSON.parse(await file.text()));await Promise.all(Object.values(next.photos).map(async p=>{const image=new Image();image.src=p.image;await image.decode()}));if(!confirm('导入会替换当前设备中的整本纪念册。请确认已备份当前内容。继续导入？'))return;const prev=state;state=next;dirty=true;if(await persist()){updateUI();toast('纪念册已恢复')}else{state=prev;dirty=false;toast('导入未完成，当前纪念册已保留')}}catch(err){toast(`无法导入：${err.message}`)}finally{e.target.value=''}};
-$('install-help').onclick=()=>$('help-dialog').showModal();
 try{await initDB();$('save-state').textContent='● 已保存在本机'}catch(e){$('save-state').textContent='本机存储不可用';toast('当前浏览器无法保存，请使用普通浏览模式，并及时导出备份')}
 initScene();updateUI();
-// Only claim offline readiness after the controlling worker verifies its own cache.
-let offlineChecking=false;
-function timeout(p,ms,message){let timer;return Promise.race([p,new Promise((_,reject)=>timer=setTimeout(()=>reject(Error(message)),ms))]).finally(()=>clearTimeout(timer))}
-function askOfflineStatus(worker){return timeout(new Promise((resolve,reject)=>{const channel=new MessageChannel();channel.port1.onmessage=e=>{channel.port1.close();resolve(e.data)};channel.port1.onmessageerror=()=>reject(Error('离线检查未返回有效结果'));worker.postMessage({type:'CHECK_OFFLINE'},[channel.port2])}),5000,'离线检查超时，请联网重试')}
-async function prepareOffline(){
- if(offlineChecking)return;offlineChecking=true;$('offline-retry').disabled=true;
- $('offline-status').textContent='正在下载并核对离线资源，请保持联网…';
- try{
-  if(!isSecureContext||!('serviceWorker'in navigator))throw Error('当前入口不支持离线安装，请使用 Safari 的 HTTPS 网页');
-  const reg=await timeout(navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}),18000,'离线脚本加载超时，可能被网络或托管平台拦截');
-  await timeout(reg.update(),18000,'离线更新检查超时，请稍后联网重试');
-  if(!navigator.serviceWorker.controller)await timeout(new Promise(resolve=>{navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true});if(navigator.serviceWorker.controller)resolve()}),20000,'离线程序尚未接管此入口，请保持联网后重新打开');
-  const status=await askOfflineStatus(navigator.serviceWorker.controller);
-  if(status?.version!=='little-years-v2')throw Error('仍在使用旧版离线程序，请联网关闭后重新打开再检查');
-  if(!status.ready)throw Error('离线资源不完整，请联网重新准备');
-  $('offline-status').textContent='当前入口离线已就绪：应用资源已核对，离线程序已接管。请断网关闭并重新打开，完成本机验证。';
-  $('install-help').textContent='离线已就绪';
- }catch(error){
-  $('offline-status').textContent=`离线未就绪：${error.message}。若出现 blocked 或 403，这是托管平台拦截，添加主屏幕不能解决。请勿清理网站数据，先联网导出照片备份。`;
-  $('install-help').textContent='离线未就绪';
- }finally{offlineChecking=false;$('offline-retry').disabled=false}
+// Retire only this app's previous worker; the photo database stays intact.
+if ('serviceWorker' in navigator) {
+ const scope = new URL('./', location.href).href;
+ navigator.serviceWorker.getRegistrations().then(registrations => Promise.all(
+  registrations.filter(reg => reg.scope === scope).map(reg => reg.unregister())
+ )).catch(console.warn);
 }
-$('offline-retry').onclick=prepareOffline;
-prepareOffline();
