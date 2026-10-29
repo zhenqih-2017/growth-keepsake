@@ -25,10 +25,10 @@ function backTexture(){return canvasTexture(1800,945,(c,w,h)=>{c.fillStyle='#514
 function wellGeometry(p){
  const outer=[[-p.w/2-.075,-p.h/2-.075],[p.w/2+.075,-p.h/2-.075],[p.w/2+.075,p.h/2+.075],[-p.w/2-.075,p.h/2+.075]];
  const inner=[[-p.w/2,-p.h/2],[p.w/2,-p.h/2],[p.w/2,p.h/2],[-p.w/2,p.h/2]];
- const vertices=[];for(let i=0;i<4;i++){const j=(i+1)%4;const a=[...outer[i],.31],b=[...outer[j],.31],c=[...inner[j],.10],d=[...inner[i],.10];vertices.push(...a,...b,...c,...a,...c,...d)}
+ const vertices=[];for(let i=0;i<4;i++){const j=(i+1)%4;const a=[...outer[i],.31],b=[...outer[j],.31],c=[...inner[j],.275],d=[...inner[i],.275];vertices.push(...a,...b,...c,...a,...c,...d)}
  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));g.computeVertexNormals();return g;
 }
-function wellShade(){return canvasTexture(256,324,(c,w,h)=>{c.clearRect(0,0,w,h);for(const [x0,y0,x1,y1,rect] of [[0,0,0,30,[0,0,w,30]],[0,0,24,0,[0,0,24,h]],[w,0,w-15,0,[w-15,0,15,h]],[0,h,0,h-15,[0,h-15,w,15]]]){const gradient=c.createLinearGradient(x0,y0,x1,y1);gradient.addColorStop(0,'rgba(56,40,19,.34)');gradient.addColorStop(1,'rgba(56,40,19,0)');c.fillStyle=gradient;c.fillRect(...rect)}})}
+function wellShade(){return canvasTexture(256,324,(c,w,h)=>{c.clearRect(0,0,w,h);for(const [x0,y0,x1,y1,rect] of [[0,0,0,5,[0,0,w,5]],[0,0,4,0,[0,0,4,h]],[w,0,w-2.5,0,[w-2.5,0,2.5,h]],[0,h,0,h-2.5,[0,h-2.5,w,2.5]]]){const gradient=c.createLinearGradient(x0,y0,x1,y1);gradient.addColorStop(0,'rgba(56,40,19,.16)');gradient.addColorStop(1,'rgba(56,40,19,0)');c.fillStyle=gradient;c.fillRect(...rect)}})}
 function rebuild(){
  if(!frame)return;[...frontSlots,...wellMeshes].forEach(removeMesh);frontSlots=[];wellMeshes=[];removeMesh(boardMesh);removeMesh(backMesh);
  const card=shapeRect(12,6.3,.14);
@@ -38,8 +38,8 @@ function rebuild(){
  backMesh=new THREE.Mesh(new THREE.PlaneGeometry(12,6.3),new THREE.MeshStandardMaterial({map:backTexture(),roughness:1}));backMesh.position.z=-.32;backMesh.rotation.y=Math.PI;frame.add(backMesh);
  slotLayout().forEach((p,i)=>{
   const bevel=new THREE.Mesh(wellGeometry(p),new THREE.MeshStandardMaterial({color:0xe4d9bd,roughness:.96,side:THREE.DoubleSide}));bevel.position.set(p.x,p.y,0);frame.add(bevel);wellMeshes.push(bevel);
-  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(p.w,p.h),new THREE.MeshBasicMaterial({map:placeholder(i)}));mesh.position.set(p.x,p.y,.10);mesh.userData.index=i;frame.add(mesh);frontSlots.push(mesh);
-  const shade=new THREE.Mesh(new THREE.PlaneGeometry(p.w,p.h),new THREE.MeshBasicMaterial({map:wellShade(),transparent:true,depthWrite:false}));shade.position.set(p.x,p.y,.103);frame.add(shade);wellMeshes.push(shade);
+  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(p.w,p.h),new THREE.MeshBasicMaterial({map:placeholder(i)}));mesh.position.set(p.x,p.y,.275);mesh.userData.index=i;frame.add(mesh);frontSlots.push(mesh);
+  const shade=new THREE.Mesh(new THREE.PlaneGeometry(p.w,p.h),new THREE.MeshBasicMaterial({map:wellShade(),transparent:true,depthWrite:false}));shade.position.set(p.x,p.y,.276);frame.add(shade);wellMeshes.push(shade);
   const photo=state.photos[key(i)];if(photo){const generationKey=key(i);new THREE.TextureLoader().load(photo.image,tex=>{if(!frontSlots.includes(mesh)||generationKey!==key(i)){tex.dispose();return}tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();mesh.material.map.dispose();mesh.material.map=tex;mesh.material.needsUpdate=true})}
  });
 }
